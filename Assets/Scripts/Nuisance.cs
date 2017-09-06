@@ -5,21 +5,14 @@ using enums;
 
 public class Nuisance : MonoBehaviour {
 
-    public bool IsComingFromLeft = false;
-    public Type DistractionType;
-    private GameMaster MasterData;
+    public bool _IsComingFromLeft = false;
+    public Type _DistractionType;
+    public float _SpawnedTimeStamp;
 
-    public void RandomReset()
-    {
-
-    }
+    private GameMaster _MasterData;
 
 	void Start () {
-        MasterData = GameObject.FindGameObjectsWithTag("GameMaster")[0].GetComponent<GameMaster>();
-	}
-	
-	void Update () {
-		
+        _MasterData = GameObject.FindGameObjectsWithTag("GameMaster")[0].GetComponent<GameMaster>();
 	}
 }
 
