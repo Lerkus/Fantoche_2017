@@ -7,7 +7,6 @@ public class Nuisance : MonoBehaviour {
 
     public bool _IsComingFromLeft = false;
     public Type _DistractionType;
-    public float _SpawnedTimeStamp;
 
     //private GameMaster _MasterData;
 

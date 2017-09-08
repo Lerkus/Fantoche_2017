@@ -4,17 +4,17 @@ using UnityEngine;
 
 public class Hand : MonoBehaviour
 {
-    public GameObject _SlapAble = null;
+    public List<GameObject> _SlapAble = new List<GameObject>();
     public void OnTriggerEnter2D(Collider2D collision)
     {
-        _SlapAble = collision.gameObject;
+        _SlapAble.Add(collision.gameObject);
     }
 
     public void OnTriggerExit2D(Collider2D collision)
     {
-        if(_SlapAble = collision.gameObject)
+        if(_SlapAble.Contains(collision.gameObject))
         {
-            _SlapAble = null;
+            _SlapAble.Remove(collision.gameObject);
         }
     }
 }

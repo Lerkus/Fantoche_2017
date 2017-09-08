@@ -15,8 +15,8 @@ public class GameMaster : MonoBehaviour
 
     public GameObject _CamObject;
     public GameObject _SageObject;
-    public Hand LeftHand;
-    public Hand RightHand;
+    public Hand _LeftHand;
+    public Hand _RightHand;
 
     public Vector2 _SpawnpointLeft;
     public Vector2 _SpawnpointRight;
@@ -26,9 +26,10 @@ public class GameMaster : MonoBehaviour
 
     public Vector3 _NuisanceWalkingVelocity;
     public float _TimeSpawnCycle;
-    [Range(0.01f, 1)]
+    [Range(0.01f, 1f)]
     public float _SlowmoTimePercentage;
-
+    [Range(0.01f, 1f)]
+    public float _TimeUntilHandDisappears;
     public float _TimeUntilThrowReady;
 
     public float _AmountOfSlapsNeeded;
@@ -47,7 +48,8 @@ public class GameMaster : MonoBehaviour
     private float _AmountOfSlapsNeeded_AtStart;
     private float _MaxTimeForBarricateSlapping_AtStart;
 
-    private List<GameObject> _WalkingObjects = new List<GameObject>();
+    private List<GameObject> _WalkingObjectsLeft = new List<GameObject>();
+    private List<GameObject> _WalkingObjectsRight = new List<GameObject>();
     private List<GameObject> _ObjectPool = new List<GameObject>();
     private int _StartFillingCountObjectPool = 10;
 
@@ -68,6 +70,8 @@ public class GameMaster : MonoBehaviour
     private float _TimestampLastHit = 0;
 
     private List<Coroutine> _GotHit = new List<Coroutine>();
+    private Coroutine _LeftHandAppearTimer;
+    private Coroutine _RightHandAppearTimer;
     #endregion
     #region Properties
     public GameObject AnotherWalkingObject
@@ -75,28 +79,32 @@ public class GameMaster : MonoBehaviour
         get
         {
             GameObject buffer;
+
             if (_ObjectPool.Count == 0)
             {
                 buffer = GameObject.Instantiate(RandomPrefab);
                 buffer.SetActive(false);
                 _ObjectPool.Add(buffer);
             }
+
             buffer = _ObjectPool[Random.Range(0, _ObjectPool.Count - 1)];
             _ObjectPool.Remove(buffer);
-            _WalkingObjects.Add(buffer);
             Nuisance bufferData = buffer.GetComponent<Nuisance>();
             bufferData._IsComingFromLeft = Random.value > 0.5f;
+
             if (bufferData._IsComingFromLeft)
             {
                 buffer.transform.position = _SpawnpointLeft;
                 buffer.GetComponent<SpriteRenderer>().flipX = false;
+                _WalkingObjectsLeft.Add(buffer);
             }
             else
             {
                 buffer.transform.position = _SpawnpointRight;
-                buffer.GetComponent<SpriteRenderer>().flipX = false;
+                buffer.GetComponent<SpriteRenderer>().flipX = true;
+                _WalkingObjectsRight.Add(buffer);
             }
-            bufferData._SpawnedTimeStamp = Time.timeSinceLevelLoad;
+
             buffer.SetActive(true);
             return buffer;
         }
@@ -150,24 +158,12 @@ public class GameMaster : MonoBehaviour
     public void Update()
     {
         PositionUpdate();
-        while (IsNearestObjectToNear())
-        {
-            if (_IsThrowing)
-            {
-                ObjectThrowStop(_BusyHand);
-            }
-            if (_IsBarricateSlapping)
-            {
-                SlapBarricateStop(_BusyHand);
-            }
-            Penalty();
-            RemoveNearestNuisance();
-        }
         PlayerInput();
+        GotHitUpdate();
         TimeUpdate();
     }
     #endregion
-
+    #region Coroutines
     public IEnumerator SpawnCycle()
     {
         GameObject buffer;
@@ -192,56 +188,129 @@ public class GameMaster : MonoBehaviour
     }
     public IEnumerator HitBlink()
     {
-        _SageObject.GetComponent<SpriteRenderer>().color = new Color(255,255,255, _SageObject.GetComponent<SpriteRenderer>().color.a/2.0f);
+        _SageObject.GetComponent<SpriteRenderer>().color = new Color(255, 255, 255, _SageObject.GetComponent<SpriteRenderer>().color.a / 2.0f);
         yield return new WaitForSeconds(0.2f);
         _SageObject.GetComponent<SpriteRenderer>().color = new Color(255, 255, 255, _SageObject.GetComponent<SpriteRenderer>().color.a * 2.0f);
         Coroutine Buffer = _GotHit[0];
         _GotHit.Remove(Buffer);
         StopCoroutine(Buffer);
     }
-    public void RemoveNearestNuisance()
+    public IEnumerator DisapearTimer(Hand WhichHand)
+    {
+        yield return new WaitForSeconds(_TimeUntilHandDisappears);
+
+        WhichHand.gameObject.transform.GetChild(0).gameObject.SetActive(false);
+        if (WhichHand == _LeftHand && _LeftHandAppearTimer != null)
+        {
+            StopCoroutine(_LeftHandAppearTimer);
+        }
+        else if(WhichHand == _RightHand && _RightHandAppearTimer != null)
+        {
+            StopCoroutine(_RightHandAppearTimer);
+        }
+    }
+    #endregion
+    private void GotHitUpdate()
+    {
+        while (IsNearestLeftObjectToNear())
+        {
+            if (_IsThrowing)
+            {
+                ObjectThrowStop(_BusyHand);
+            }
+            if (_IsBarricateSlapping)
+            {
+                SlapBarricateStop(_BusyHand);
+            }
+            Penalty();
+            RemoveNearestLeftNuisance();
+        }
+        while (IsNearestRightObjectToNear())
+        {
+            if (_IsThrowing)
+            {
+                ObjectThrowStop(_BusyHand);
+            }
+            if (_IsBarricateSlapping)
+            {
+                SlapBarricateStop(_BusyHand);
+            }
+            Penalty();
+            RemoveNearestRightNuisance();
+        }
+    }
+    private void RemoveNearestLeftNuisance()
     {
         GameObject buffer;
-        if (_WalkingObjects.Count > 0)
+        if (_WalkingObjectsLeft.Count > 0)
         {
-            buffer = _WalkingObjects[0];
+            buffer = _WalkingObjectsLeft[0];
             buffer.SetActive(false);
-            _WalkingObjects.Remove(buffer);
+            _WalkingObjectsLeft.Remove(buffer);
+            _ObjectPool.Add(buffer);
+        }
+    }
+    private void RemoveNearestRightNuisance()
+    {
+        GameObject buffer;
+        if (_WalkingObjectsRight.Count > 0)
+        {
+            buffer = _WalkingObjectsRight[0];
+            buffer.SetActive(false);
+            _WalkingObjectsRight.Remove(buffer);
             _ObjectPool.Add(buffer);
         }
     }
     private void RemoveWalkingObject(GameObject WalkingObject)
     {
-        if (_WalkingObjects.Contains(WalkingObject))
+        if (_WalkingObjectsLeft.Contains(WalkingObject))
         {
             WalkingObject.SetActive(false);
-            _WalkingObjects.Remove(WalkingObject);
+            _WalkingObjectsLeft.Remove(WalkingObject);
+            _ObjectPool.Add(WalkingObject);
+        }
+        if (_WalkingObjectsRight.Contains(WalkingObject))
+        {
+            WalkingObject.SetActive(false);
+            _WalkingObjectsRight.Remove(WalkingObject);
             _ObjectPool.Add(WalkingObject);
         }
     }
     private void PositionUpdate()
     {
         Nuisance data;
-        foreach (GameObject NoisyObject in _WalkingObjects)
+        foreach (GameObject NoisyObject in _WalkingObjectsLeft)
+        {
+            data = NoisyObject.GetComponent<Nuisance>();
+            NoisyObject.transform.position += _NuisanceWalkingVelocity * Time.deltaTime;
+
+        }
+
+        foreach (GameObject NoisyObject in _WalkingObjectsRight)
         {
             data = NoisyObject.GetComponent<Nuisance>();
 
-            if (data._IsComingFromLeft)
-            {
-                NoisyObject.transform.position += _NuisanceWalkingVelocity * Time.deltaTime;
-            }
-            else
-            {
-                NoisyObject.transform.position += _NuisanceWalkingVelocity * Time.deltaTime * -1;
-            }
+            NoisyObject.transform.position += _NuisanceWalkingVelocity * Time.deltaTime * -1;
         }
+
     }
 
-    private bool IsNearestObjectToNear()
+    private bool IsNearestLeftObjectToNear()
     {
-        if (_WalkingObjects.Count > 0)
+        if (_WalkingObjectsLeft.Count > 0)
         {
-            if ((_SageObject.transform.position - _WalkingObjects[0].transform.position).sqrMagnitude < _TranquilDistance * _TranquilDistance)
+            if ((_SageObject.transform.position - _WalkingObjectsLeft[0].transform.position).sqrMagnitude < _TranquilDistance * _TranquilDistance)
+            {
+                return true;
+            }
+        }
+        return false;
+    }
+    private bool IsNearestRightObjectToNear()
+    {
+        if (_WalkingObjectsRight.Count > 0)
+        {
+            if ((_SageObject.transform.position - _WalkingObjectsRight[0].transform.position).sqrMagnitude < _TranquilDistance * _TranquilDistance)
             {
                 return true;
             }
@@ -266,7 +335,7 @@ public class GameMaster : MonoBehaviour
 
         else if (_IsThrowing)
         {
-            if ((Input.GetButton("Left") && _BusyHand == LeftHand) || (Input.GetButton("Right") && _BusyHand == RightHand))
+            if ((Input.GetButton("Left") && _BusyHand == _LeftHand) || (Input.GetButton("Right") && _BusyHand == _RightHand))
             {
                 //TODO: aufladen effekte hier einbauen.
             }
@@ -277,12 +346,19 @@ public class GameMaster : MonoBehaviour
         }
         else if (_IsBarricateSlapping)
         {
-            if ((Input.GetButtonDown("Left") && _BusyHand == LeftHand) || (Input.GetButtonDown("Right") && _BusyHand == RightHand))
+            if ((Input.GetButtonDown("Left") && _BusyHand == _LeftHand) || (Input.GetButtonDown("Right") && _BusyHand == _RightHand))
             {
                 _SlappingCounter++;
                 if (_AmountOfSlapsNeeded <= _SlappingCounter)
                 {
-                    RemoveNearestNuisance();
+                    if (_BusyHand == _LeftHand)
+                    {
+                        RemoveNearestLeftNuisance();
+                    }
+                    else
+                    {
+                        RemoveNearestRightNuisance();
+                    }
                     SlapBarricateStop(_BusyHand);
                 }
             }
@@ -291,13 +367,13 @@ public class GameMaster : MonoBehaviour
 
     private void InitialSlaps()
     {
-        if (!IsBusySlapping() && Input.GetButtonDown("Left"))
+        if (Input.GetButtonDown("Left"))
         {
-            DecideSlap(LeftHand);
+            DecideSlap(_LeftHand);
         }
-        if (!IsBusySlapping() && Input.GetButtonDown("Right"))
+        if (Input.GetButtonDown("Right"))
         {
-            DecideSlap(RightHand);
+            DecideSlap(_RightHand);
         }
     }
 
@@ -308,18 +384,14 @@ public class GameMaster : MonoBehaviour
 
     private void DecideSlap(Hand WhichHand)
     {
-        if (WhichHand != null && WhichHand._SlapAble != null)
+        if (WhichHand != null && WhichHand._SlapAble.Count > 0)
         {
-            Nuisance BufferNuisance = WhichHand._SlapAble.GetComponent<Nuisance>();
-            Debug.Log(WhichHand);
-            Debug.Log(WhichHand._SlapAble);
+            Nuisance BufferNuisance = WhichHand._SlapAble[0].GetComponent<Nuisance>();
             enums.Type BufferType = BufferNuisance._DistractionType;
             switch (BufferType)
             {
                 case enums.Type.normal:
-                    RemoveWalkingObject(WhichHand._SlapAble);
-                    WhichHand._SlapAble = null;
-                    WhichHand.gameObject.transform.Rotate(Vector3.forward, 90);
+                    NormalSlap(WhichHand);
                     break;
 
                 case enums.Type.dog:
@@ -334,6 +406,13 @@ public class GameMaster : MonoBehaviour
             }
         }
     }
+    private void NormalSlap(Hand WhichHand)
+    {
+        GameObject Buffer = WhichHand._SlapAble[0];
+        RemoveWalkingObject(WhichHand._SlapAble[0]);
+        WhichHand._SlapAble.Remove(Buffer);
+        LetHandAppear(WhichHand);
+    }
     private void ObjectThrowStart(Hand WhichHand)
     {
         Time.timeScale = _SlowmoTimePercentage;
@@ -343,6 +422,7 @@ public class GameMaster : MonoBehaviour
         _TimerUntilThrowOkay = StartCoroutine(StopwatchThrow());
         _IsThrowing = true;
         _BusyHand = WhichHand;
+        LetHandAppear(WhichHand);
     }
     private void ObjectThrowStop(Hand WhichHand)
     {
@@ -350,7 +430,14 @@ public class GameMaster : MonoBehaviour
         _CamObject.transform.position = _OriginalCamPosition;
         if (_ReadyToThrow)
         {
-            RemoveNearestNuisance();
+            if (_BusyHand == _LeftHand)
+            {
+                RemoveNearestLeftNuisance();
+            }
+            else
+            {
+                RemoveNearestRightNuisance();
+            }
             _ReadyToThrow = false;
         }
         if (_TimerUntilThrowOkay != null)
@@ -371,6 +458,7 @@ public class GameMaster : MonoBehaviour
         _BusyHand = WhichHand;
         _SlappingCounter = 0;
         _TimerForSlappingBarricate = StartCoroutine(StopwatchBarricateSlapping());
+        LetHandAppear(WhichHand);
     }
     private void SlapBarricateStop(Hand WhichHand)
     {
@@ -416,5 +504,28 @@ public class GameMaster : MonoBehaviour
 
         _WisdomDisplay.text = "" + stage;
     }
-    
+    private void LetHandAppear(Hand WhichHand)
+    {
+        WhichHand.gameObject.transform.GetChild(0).gameObject.SetActive(true);
+        Debug.Log(WhichHand.gameObject.transform.childCount);
+        Coroutine Buffer = StartCoroutine(DisapearTimer(WhichHand));
+        
+        if (WhichHand == _LeftHand)
+        {
+            if (_LeftHandAppearTimer != null)
+            {
+                StopCoroutine(_LeftHandAppearTimer);
+                _LeftHandAppearTimer = Buffer;
+            }
+        }
+        else if (WhichHand == _RightHand)
+        {
+            if (_RightHandAppearTimer != null)
+            {
+                StopCoroutine(_RightHandAppearTimer);
+                _RightHandAppearTimer = Buffer;
+            }
+        }
+        
+    }
 }
