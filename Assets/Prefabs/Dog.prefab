@@ -79,7 +79,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   _IsComingFromLeft: 0
-  _DistractionType: 0
+  _DistractionType: 1
   _SpawnedTimeStamp: 0
 --- !u!212 &212774607834055278
 SpriteRenderer:

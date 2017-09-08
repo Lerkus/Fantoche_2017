@@ -9,11 +9,12 @@ public class Nuisance : MonoBehaviour {
     public Type _DistractionType;
     public float _SpawnedTimeStamp;
 
-    private GameMaster _MasterData;
+    //private GameMaster _MasterData;
 
 	void Start () {
-        _MasterData = GameObject.FindGameObjectsWithTag("GameMaster")[0].GetComponent<GameMaster>();
-	}
+        //_MasterData = GameObject.FindGameObjectsWithTag("GameMaster")[0].GetComponent<GameMaster>();
+    }
+
 }
 
 namespace enums
