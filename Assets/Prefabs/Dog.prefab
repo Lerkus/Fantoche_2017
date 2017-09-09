@@ -59,7 +59,7 @@ BoxCollider2D:
     border: {x: 0, y: 0, z: 0, w: 0}
     pivot: {x: 0.5, y: 0.5}
     oldSize: {x: 20.48, y: 20.48}
-    newSize: {x: 0.2, y: 0.2}
+    newSize: {x: 20.48, y: 20.48}
     adaptiveTilingThreshold: 0.5
     drawMode: 0
     adaptiveTiling: 0
@@ -80,6 +80,12 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   _IsComingFromLeft: 0
   _DistractionType: 1
+  _WalkingVelocity: {x: 0, y: 0, z: 0}
+  _Walkingmodifier: 1.5
+  _SpritesForAnimation:
+  - {fileID: 21300000, guid: 29c426677479e1b45bcb23996b074611, type: 3}
+  - {fileID: 21300000, guid: 895d8c2386c5ed14baf28aab47f5cc98, type: 3}
+  _TimeUntilSpriteFlip: 0
 --- !u!212 &212774607834055278
 SpriteRenderer:
   m_ObjectHideFlags: 1
@@ -112,12 +118,12 @@ SpriteRenderer:
   m_SortingLayerID: 0
   m_SortingLayer: 0
   m_SortingOrder: 0
-  m_Sprite: {fileID: 21300000, guid: 219c6e262b0e6e5409212636434d5ca5, type: 3}
+  m_Sprite: {fileID: 21300000, guid: b6e0dbde35d29924588da09e1a305017, type: 3}
   m_Color: {r: 1, g: 1, b: 1, a: 1}
   m_FlipX: 0
   m_FlipY: 0
   m_DrawMode: 0
-  m_Size: {x: 0.2, y: 0.2}
+  m_Size: {x: 20.48, y: 20.48}
   m_AdaptiveModeThreshold: 0.5
   m_SpriteTileMode: 0
   m_WasSpriteAssigned: 1

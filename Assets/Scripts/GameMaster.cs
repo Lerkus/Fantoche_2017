@@ -38,8 +38,6 @@ public class GameMaster : MonoBehaviour
     [Range(0.01f, 1)]
     public float _PercentageIncreasePerStage;
 
-    public Text _WisdomDisplay;
-
     //Startwerte der sich je nach Schwierigkeitändernde Parameter.
     private Vector3 _NuisanceWalkingVelocity_AtStart;
     private float _TimeSpawnCycle_AtStart;
@@ -72,6 +70,8 @@ public class GameMaster : MonoBehaviour
     private List<Coroutine> _GotHit = new List<Coroutine>();
     private Coroutine _LeftHandAppearTimer;
     private Coroutine _RightHandAppearTimer;
+    private MonkAppearance _WisdomDisplay;
+    private int _WisdomLevelBuffer = 0;
     #endregion
     #region Properties
     public GameObject AnotherWalkingObject
@@ -96,12 +96,14 @@ public class GameMaster : MonoBehaviour
             {
                 buffer.transform.position = _SpawnpointLeft;
                 buffer.GetComponent<SpriteRenderer>().flipX = false;
+                bufferData._WalkingVelocity = _NuisanceWalkingVelocity;
                 _WalkingObjectsLeft.Add(buffer);
             }
             else
             {
                 buffer.transform.position = _SpawnpointRight;
                 buffer.GetComponent<SpriteRenderer>().flipX = true;
+                bufferData._WalkingVelocity = _NuisanceWalkingVelocity * -1;
                 _WalkingObjectsRight.Add(buffer);
             }
 
@@ -109,7 +111,6 @@ public class GameMaster : MonoBehaviour
             return buffer;
         }
     }
-
     private GameObject RandomPrefab
     {
         get
@@ -134,6 +135,38 @@ public class GameMaster : MonoBehaviour
             return _PrefabNuisance[id + 1];
         }
     }
+    private int WisdomLevel
+    {
+        get
+        {
+            int stage = -1;
+            float TimeSinceLastHit = Time.time - _TimestampLastHit;
+            for (int i = 0; i < _TimeNeededForStage.GetLength(0); i++)
+            {
+                if (TimeSinceLastHit > _TimeNeededForStage[i])
+                {
+                    stage = i;
+                }
+            }
+
+            if (stage > _WisdomLevelBuffer)
+            {
+                return stage;
+            }
+            else
+            {
+                if (stage - 1 >= 0)
+                {
+                    _TimestampLastHit = Time.time - _TimeNeededForStage[stage - 1];
+                    return stage - 1;
+                }
+                else
+                {
+                    return -1;
+                }
+            }
+        }
+    }
     #endregion
     #region EngineFunctions
     public void Start()
@@ -147,6 +180,7 @@ public class GameMaster : MonoBehaviour
         }
         _SpawnerTimer = StartCoroutine(SpawnCycle());
         _ShouldSpawn = true;
+        _TimestampLastHit = Time.time;
 
         _NuisanceWalkingVelocity_AtStart = _NuisanceWalkingVelocity;
         _TimeSpawnCycle_AtStart = _TimeSpawnCycle;
@@ -154,10 +188,10 @@ public class GameMaster : MonoBehaviour
         _TimeUntilThrowReady_AtStart = _TimeUntilThrowReady;
         _AmountOfSlapsNeeded_AtStart = _AmountOfSlapsNeeded;
         _MaxTimeForBarricateSlapping_AtStart = _MaxTimeForBarricateSlapping;
+        _WisdomDisplay = _SageObject.GetComponent<MonkAppearance>();
     }
     public void Update()
     {
-        PositionUpdate();
         PlayerInput();
         GotHitUpdate();
         TimeUpdate();
@@ -204,7 +238,7 @@ public class GameMaster : MonoBehaviour
         {
             StopCoroutine(_LeftHandAppearTimer);
         }
-        else if(WhichHand == _RightHand && _RightHandAppearTimer != null)
+        else if (WhichHand == _RightHand && _RightHandAppearTimer != null)
         {
             StopCoroutine(_RightHandAppearTimer);
         }
@@ -276,25 +310,6 @@ public class GameMaster : MonoBehaviour
             _ObjectPool.Add(WalkingObject);
         }
     }
-    private void PositionUpdate()
-    {
-        Nuisance data;
-        foreach (GameObject NoisyObject in _WalkingObjectsLeft)
-        {
-            data = NoisyObject.GetComponent<Nuisance>();
-            NoisyObject.transform.position += _NuisanceWalkingVelocity * Time.deltaTime;
-
-        }
-
-        foreach (GameObject NoisyObject in _WalkingObjectsRight)
-        {
-            data = NoisyObject.GetComponent<Nuisance>();
-
-            NoisyObject.transform.position += _NuisanceWalkingVelocity * Time.deltaTime * -1;
-        }
-
-    }
-
     private bool IsNearestLeftObjectToNear()
     {
         if (_WalkingObjectsLeft.Count > 0)
@@ -321,8 +336,8 @@ public class GameMaster : MonoBehaviour
     {
         //TODO: implement penalty here.
         //use the stats of the closest Object.
+        _WisdomLevelBuffer = WisdomLevel;
         Debug.Log("Let me read my magazins in peace!");
-        _TimestampLastHit = Time.time;
         Coroutine Buffer = StartCoroutine(HitBlink());
         _GotHit.Add(Buffer);
     }
@@ -364,7 +379,6 @@ public class GameMaster : MonoBehaviour
             }
         }
     }
-
     private void InitialSlaps()
     {
         if (Input.GetButtonDown("Left"))
@@ -376,12 +390,10 @@ public class GameMaster : MonoBehaviour
             DecideSlap(_RightHand);
         }
     }
-
     private bool IsBusySlapping()
     {
         return _IsThrowing || _IsBarricateSlapping;
     }
-
     private void DecideSlap(Hand WhichHand)
     {
         if (WhichHand != null && WhichHand._SlapAble.Count > 0)
@@ -415,10 +427,7 @@ public class GameMaster : MonoBehaviour
     }
     private void ObjectThrowStart(Hand WhichHand)
     {
-        Time.timeScale = _SlowmoTimePercentage;
-        _OriginalCamPosition = _CamObject.transform.position;
-        _CamObject.transform.position = Vector3.Scale(WhichHand.gameObject.transform.position, new Vector3(1, 1, 0));
-        _CamObject.transform.position += Vector3.Scale(_OriginalCamPosition, new Vector3(0, 0, 1));
+        StartSlowmoZoom(WhichHand);
         _TimerUntilThrowOkay = StartCoroutine(StopwatchThrow());
         _IsThrowing = true;
         _BusyHand = WhichHand;
@@ -426,8 +435,7 @@ public class GameMaster : MonoBehaviour
     }
     private void ObjectThrowStop(Hand WhichHand)
     {
-        Time.timeScale = 1;
-        _CamObject.transform.position = _OriginalCamPosition;
+        StopSlowmoZoom();
         if (_ReadyToThrow)
         {
             if (_BusyHand == _LeftHand)
@@ -450,10 +458,7 @@ public class GameMaster : MonoBehaviour
     }
     private void SlapBarricateStart(Hand WhichHand)
     {
-        Time.timeScale = _SlowmoTimePercentage;
-        _OriginalCamPosition = _CamObject.transform.position;
-        _CamObject.transform.position = Vector3.Scale(WhichHand.gameObject.transform.position, new Vector3(1, 1, 0));
-        _CamObject.transform.position += Vector3.Scale(_OriginalCamPosition, new Vector3(0, 0, 1));
+        StartSlowmoZoom(WhichHand);
         _IsBarricateSlapping = true;
         _BusyHand = WhichHand;
         _SlappingCounter = 0;
@@ -462,8 +467,7 @@ public class GameMaster : MonoBehaviour
     }
     private void SlapBarricateStop(Hand WhichHand)
     {
-        Time.timeScale = 1;
-        _CamObject.transform.position = _OriginalCamPosition;
+        StopSlowmoZoom();
         _IsBarricateSlapping = false;
         _BusyHand = null;
         _SlappingCounter = 0;
@@ -474,42 +478,28 @@ public class GameMaster : MonoBehaviour
     }
     private void TimeUpdate()
     {
-        int stage = 0;
-        float TimeSinceLastHit = Time.time - _TimestampLastHit;
-        for (int i = 0; i < _TimeNeededForStage.GetLength(0); i++)
+        int BufferLevel = WisdomLevel;
+        float BufferDevelopment = 1;
+
+        for (int i = 0; i < BufferLevel; i++)
         {
-            if (TimeSinceLastHit > _TimeNeededForStage[i])
-            {
-                stage = i;
-            }
+            BufferDevelopment *= 1 + _PercentageIncreasePerStage;
         }
 
-        _NuisanceWalkingVelocity = _NuisanceWalkingVelocity_AtStart;
-        _TimeSpawnCycle = _TimeSpawnCycle_AtStart;
-        _SlowmoTimePercentage = _SlowmoTimePercentage_AtStart;
-        _TimeUntilThrowReady = _TimeUntilThrowReady_AtStart;
-        _AmountOfSlapsNeeded = _AmountOfSlapsNeeded_AtStart;
-        _MaxTimeForBarricateSlapping = _MaxTimeForBarricateSlapping_AtStart;
+        _NuisanceWalkingVelocity = _NuisanceWalkingVelocity_AtStart / BufferDevelopment;
+        _TimeSpawnCycle = _TimeSpawnCycle_AtStart / BufferDevelopment;
+        _SlowmoTimePercentage = _SlowmoTimePercentage_AtStart * BufferDevelopment;
+        _TimeUntilThrowReady = _TimeUntilThrowReady_AtStart * BufferDevelopment;
+        _AmountOfSlapsNeeded = _AmountOfSlapsNeeded_AtStart * BufferDevelopment;
+        _MaxTimeForBarricateSlapping = _MaxTimeForBarricateSlapping_AtStart / BufferDevelopment;
 
-        //TODO Übergang von einem SageLevel zum nächsten.
-        for (int i = 0; i < stage; i++)
-        {
-            _NuisanceWalkingVelocity /= 1 + _PercentageIncreasePerStage;
-            _TimeSpawnCycle /= 1 + _PercentageIncreasePerStage;
-            _SlowmoTimePercentage *= 1 + _PercentageIncreasePerStage;
-            _TimeUntilThrowReady *= 1 + _PercentageIncreasePerStage;
-            _AmountOfSlapsNeeded *= 1 + _PercentageIncreasePerStage;
-            _MaxTimeForBarricateSlapping /= 1 + _PercentageIncreasePerStage;
-        }
-
-        _WisdomDisplay.text = "" + stage;
+        _WisdomDisplay._WisdomLevel = BufferLevel;
     }
     private void LetHandAppear(Hand WhichHand)
     {
         WhichHand.gameObject.transform.GetChild(0).gameObject.SetActive(true);
-        Debug.Log(WhichHand.gameObject.transform.childCount);
         Coroutine Buffer = StartCoroutine(DisapearTimer(WhichHand));
-        
+
         if (WhichHand == _LeftHand)
         {
             if (_LeftHandAppearTimer != null)
@@ -526,6 +516,18 @@ public class GameMaster : MonoBehaviour
                 _RightHandAppearTimer = Buffer;
             }
         }
-        
+
+    }
+    private void StartSlowmoZoom(Hand WhichHand)
+    {
+        Time.timeScale = _SlowmoTimePercentage;
+        _OriginalCamPosition = _CamObject.transform.position;
+        _CamObject.transform.position = Vector3.Scale(WhichHand.gameObject.transform.position, new Vector3(1, 0, 0));
+        _CamObject.transform.position += Vector3.Scale(_OriginalCamPosition, new Vector3(0, 1, 1));
+    }
+    private void StopSlowmoZoom()
+    {
+        Time.timeScale = 1;
+        _CamObject.transform.position = _OriginalCamPosition;
     }
 }
