@@ -352,7 +352,7 @@ public class GameMaster : MonoBehaviour
     }
     private void PlayerInput()
     {
-        if (!_GameHasStarted && (Input.GetButtonDown("Left") || Input.GetButtonDown("Right")))
+        if (!_GameHasStarted && (Input.GetButtonDown("Space")))
         {
             StartGame();
         }
@@ -508,7 +508,7 @@ public class GameMaster : MonoBehaviour
             BufferDevelopment *= 1 + _PercentageIncreasePerStage;
         }
 
-        _NuisanceWalkingVelocity = _NuisanceWalkingVelocity_AtStart / BufferDevelopment;
+        _NuisanceWalkingVelocity = _NuisanceWalkingVelocity_AtStart * BufferDevelopment;
         _TimeSpawnCycle = _TimeSpawnCycle_AtStart / BufferDevelopment;
         _SlowmoTimePercentage = _SlowmoTimePercentage_AtStart * BufferDevelopment;
         _TimeUntilThrowReady = _TimeUntilThrowReady_AtStart * BufferDevelopment;

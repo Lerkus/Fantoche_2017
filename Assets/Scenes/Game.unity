@@ -411,12 +411,12 @@ MonoBehaviour:
   _SagePointLeft: {x: -1, y: 0}
   _SagePointRight: {x: 1, y: 0}
   _TranquilDistance: 0.5
-  _NuisanceWalkingVelocity: {x: 3, y: 0, z: 0}
-  _TimeSpawnCycle: 2
-  _SlowmoTimePercentage: 0.2
+  _NuisanceWalkingVelocity: {x: 1, y: 0, z: 0}
+  _TimeSpawnCycle: 2.25
+  _SlowmoTimePercentage: 0.05
   _TimeUntilHandDisappears: 0.3
-  _TimeUntilThrowReady: 0.15
-  _AmountOfSlapsNeeded: 3
+  _TimeUntilThrowReady: 0.1
+  _AmountOfSlapsNeeded: 2
   _MaxTimeForBarricateSlapping: 6
   _PercentageIncreasePerStage: 0.25
   _Startscreen: {fileID: 4510362}
