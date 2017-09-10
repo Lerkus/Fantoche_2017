@@ -355,7 +355,6 @@ public class GameMaster : MonoBehaviour
         {
             if ((Input.GetButton("Left") && _BusyHand == _LeftHand) || (Input.GetButton("Right") && _BusyHand == _RightHand))
             {
-                //TODO: aufladen effekte hier einbauen.
             }
             else
             {
@@ -367,6 +366,7 @@ public class GameMaster : MonoBehaviour
             if ((Input.GetButtonDown("Left") && _BusyHand == _LeftHand) || (Input.GetButtonDown("Right") && _BusyHand == _RightHand))
             {
                 _SlappingCounter++;
+                _BusyHand.gameObject.GetComponent<Animator>().SetTrigger("throw");
                 if (_AmountOfSlapsNeeded <= _SlappingCounter)
                 {
                     if (_BusyHand == _LeftHand)
@@ -435,6 +435,7 @@ public class GameMaster : MonoBehaviour
         _IsThrowing = true;
         _BusyHand = WhichHand;
         LetHandAppear(WhichHand);
+        WhichHand.gameObject.GetComponent<Animator>().SetTrigger("throw");
     }
     private void ObjectThrowStop(Hand WhichHand)
     {
@@ -467,6 +468,7 @@ public class GameMaster : MonoBehaviour
         _SlappingCounter = 0;
         _TimerForSlappingBarricate = StartCoroutine(StopwatchBarricateSlapping());
         LetHandAppear(WhichHand);
+        WhichHand.gameObject.GetComponent<Animator>().SetTrigger("slap");
     }
     private void SlapBarricateStop(Hand WhichHand)
     {
