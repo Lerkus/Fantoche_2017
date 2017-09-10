@@ -40,6 +40,13 @@ public class GameMaster : MonoBehaviour
     public float _PercentageIncreasePerStage;
     public GameObject _Startscreen;
 
+    public AudioSource _Ambiente;
+    public AudioSource _LvlUp;
+    public AudioSource _LvlDown;
+    public AudioSource _Block;
+    public AudioSource _Throw;
+    public AudioSource _Slap;
+
     //Startwerte der sich je nach Schwierigkeitändernde Parameter.
     private Vector3 _NuisanceWalkingVelocity_AtStart;
     private float _TimeSpawnCycle_AtStart;
@@ -150,13 +157,16 @@ public class GameMaster : MonoBehaviour
                     stage = i;
                 }
             }
-
-                _WisdomLevelBuffer = stage;
-                return _WisdomLevelBuffer;
+            if(_WisdomLevelBuffer < stage)
+            {
+                _LvlUp.Play();
+            }
+            _WisdomLevelBuffer = stage;
+            return _WisdomLevelBuffer;
         }
         set
         {
-            if(value >= 0 && value < _TimeNeededForStage.GetLength(0))
+            if (value >= 0 && value < _TimeNeededForStage.GetLength(0))
             {
                 _TimestampLastHit = Time.time - _TimeNeededForStage[value];
             }
@@ -246,7 +256,7 @@ public class GameMaster : MonoBehaviour
     {
         List<GameObject> Buffer = new List<GameObject>();
         bool shouldBePunished = false;
-        for(int i = 0; i < _WalkingObjectsLeft.Count;i++)
+        for (int i = 0; i < _WalkingObjectsLeft.Count; i++)
         {
             if ((_WalkingObjectsLeft[i].transform.position - _SageObject.transform.position).sqrMagnitude < _TranquilDistance * _TranquilDistance)
             {
@@ -328,11 +338,12 @@ public class GameMaster : MonoBehaviour
     }
     private void Penalty()
     {
-        if(WisdomLevel - 1 != -1)
+        _LvlDown.Play();
+        if (WisdomLevel - 1 != -1)
         {
-        WisdomLevel = WisdomLevel -1;
-        Coroutine Buffer = StartCoroutine(HitBlink());
-        _GotHit.Add(Buffer);
+            WisdomLevel = WisdomLevel - 1;
+            Coroutine Buffer = StartCoroutine(HitBlink());
+            _GotHit.Add(Buffer);
         }
         else
         {
@@ -341,7 +352,7 @@ public class GameMaster : MonoBehaviour
     }
     private void PlayerInput()
     {
-        if(!_GameHasStarted && (Input.GetButtonDown("Left") || Input.GetButtonDown("Right")))
+        if (!_GameHasStarted && (Input.GetButtonDown("Left") || Input.GetButtonDown("Right")))
         {
             StartGame();
         }
@@ -366,15 +377,17 @@ public class GameMaster : MonoBehaviour
             if ((Input.GetButtonDown("Left") && _BusyHand == _LeftHand) || (Input.GetButtonDown("Right") && _BusyHand == _RightHand))
             {
                 _SlappingCounter++;
-                _BusyHand.gameObject.GetComponent<Animator>().SetTrigger("throw");
+
                 if (_AmountOfSlapsNeeded <= _SlappingCounter)
                 {
                     if (_BusyHand == _LeftHand)
                     {
+                        _LeftHand.gameObject.GetComponentInChildren<Animator>(true).SetTrigger("throw");
                         RemoveNearestLeftNuisance();
                     }
                     else
                     {
+                        _RightHand.gameObject.GetComponentInChildren<Animator>(true).SetTrigger("throw");
                         RemoveNearestRightNuisance();
                     }
                     SlapBarricateStop(_BusyHand);
@@ -427,6 +440,7 @@ public class GameMaster : MonoBehaviour
         RemoveWalkingObject(WhichHand._SlapAble[0]);
         WhichHand._SlapAble.Remove(Buffer);
         LetHandAppear(WhichHand);
+        _Block.Play();
     }
     private void ObjectThrowStart(Hand WhichHand)
     {
@@ -435,7 +449,7 @@ public class GameMaster : MonoBehaviour
         _IsThrowing = true;
         _BusyHand = WhichHand;
         LetHandAppear(WhichHand);
-        WhichHand.gameObject.GetComponent<Animator>().SetTrigger("throw");
+        WhichHand.gameObject.GetComponentInChildren<Animator>(true).SetTrigger("throw");
     }
     private void ObjectThrowStop(Hand WhichHand)
     {
@@ -459,6 +473,7 @@ public class GameMaster : MonoBehaviour
         }
         _IsThrowing = false;
         _BusyHand = null;
+        _Throw.Play();
     }
     private void SlapBarricateStart(Hand WhichHand)
     {
@@ -468,7 +483,8 @@ public class GameMaster : MonoBehaviour
         _SlappingCounter = 0;
         _TimerForSlappingBarricate = StartCoroutine(StopwatchBarricateSlapping());
         LetHandAppear(WhichHand);
-        WhichHand.gameObject.GetComponent<Animator>().SetTrigger("slap");
+        WhichHand.gameObject.GetComponentInChildren<Animator>(true).SetTrigger("slap");
+        _Slap.mute = false;
     }
     private void SlapBarricateStop(Hand WhichHand)
     {
@@ -480,6 +496,7 @@ public class GameMaster : MonoBehaviour
         {
             StopCoroutine(_TimerForSlappingBarricate);
         }
+        _Slap.mute = true;
     }
     private void TimeUpdate()
     {
@@ -499,7 +516,10 @@ public class GameMaster : MonoBehaviour
         _MaxTimeForBarricateSlapping = _MaxTimeForBarricateSlapping_AtStart / BufferDevelopment;
 
         _WisdomDisplay.SetInteger("WisdomLevel", BufferLevel);
-        if(WisdomLevel == _TimeNeededForStage.GetLength(0) - 1)
+
+        _Ambiente.volume = (10f - (float)WisdomLevel) / 10f;
+
+        if (WisdomLevel == _TimeNeededForStage.GetLength(0) - 1)
         {
             StopGame();
         }
@@ -553,7 +573,7 @@ public class GameMaster : MonoBehaviour
         _Startscreen.SetActive(true);
         _GameHasStarted = false;
         int buffer = _WalkingObjectsLeft.Count;
-        for(int i = 0; i < buffer; i++)
+        for (int i = 0; i < buffer; i++)
         {
             RemoveNearestLeftNuisance();
         }
