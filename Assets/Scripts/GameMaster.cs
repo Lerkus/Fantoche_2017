@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
+using UnityEngine.Animations;
 
 public class GameMaster : MonoBehaviour
 {
@@ -37,6 +38,7 @@ public class GameMaster : MonoBehaviour
 
     [Range(0.01f, 1)]
     public float _PercentageIncreasePerStage;
+    public GameObject _Startscreen;
 
     //Startwerte der sich je nach Schwierigkeitändernde Parameter.
     private Vector3 _NuisanceWalkingVelocity_AtStart;
@@ -52,7 +54,6 @@ public class GameMaster : MonoBehaviour
     private int _StartFillingCountObjectPool = 10;
 
     private Coroutine _SpawnerTimer;
-    private bool _ShouldSpawn = false;
 
     private Vector3 _OriginalCamPosition;
     private Hand _BusyHand;
@@ -70,8 +71,9 @@ public class GameMaster : MonoBehaviour
     private List<Coroutine> _GotHit = new List<Coroutine>();
     private Coroutine _LeftHandAppearTimer;
     private Coroutine _RightHandAppearTimer;
-    private MonkAppearance _WisdomDisplay;
+    private Animator _WisdomDisplay;
     private int _WisdomLevelBuffer = 0;
+    private bool _GameHasStarted = false;
     #endregion
     #region Properties
     public GameObject AnotherWalkingObject
@@ -139,7 +141,7 @@ public class GameMaster : MonoBehaviour
     {
         get
         {
-            int stage = -1;
+            int stage = 0;
             float TimeSinceLastHit = Time.time - _TimestampLastHit;
             for (int i = 0; i < _TimeNeededForStage.GetLength(0); i++)
             {
@@ -149,21 +151,14 @@ public class GameMaster : MonoBehaviour
                 }
             }
 
-            if (stage > _WisdomLevelBuffer)
+                _WisdomLevelBuffer = stage;
+                return _WisdomLevelBuffer;
+        }
+        set
+        {
+            if(value >= 0 && value < _TimeNeededForStage.GetLength(0))
             {
-                return stage;
-            }
-            else
-            {
-                if (stage - 1 >= 0)
-                {
-                    _TimestampLastHit = Time.time - _TimeNeededForStage[stage - 1];
-                    return stage - 1;
-                }
-                else
-                {
-                    return -1;
-                }
+                _TimestampLastHit = Time.time - _TimeNeededForStage[value];
             }
         }
     }
@@ -179,7 +174,6 @@ public class GameMaster : MonoBehaviour
             _ObjectPool.Add(buffer);
         }
         _SpawnerTimer = StartCoroutine(SpawnCycle());
-        _ShouldSpawn = true;
         _TimestampLastHit = Time.time;
 
         _NuisanceWalkingVelocity_AtStart = _NuisanceWalkingVelocity;
@@ -188,13 +182,17 @@ public class GameMaster : MonoBehaviour
         _TimeUntilThrowReady_AtStart = _TimeUntilThrowReady;
         _AmountOfSlapsNeeded_AtStart = _AmountOfSlapsNeeded;
         _MaxTimeForBarricateSlapping_AtStart = _MaxTimeForBarricateSlapping;
-        _WisdomDisplay = _SageObject.GetComponent<MonkAppearance>();
+
+        _WisdomDisplay = _SageObject.GetComponent<Animator>();
     }
     public void Update()
     {
         PlayerInput();
-        GotHitUpdate();
-        TimeUpdate();
+        if (_GameHasStarted)
+        {
+            GotHitUpdate();
+            TimeUpdate();
+        }
     }
     #endregion
     #region Coroutines
@@ -204,7 +202,7 @@ public class GameMaster : MonoBehaviour
         while (true)
         {
             yield return new WaitForSeconds(_TimeSpawnCycle);
-            if (_ShouldSpawn)
+            if (_GameHasStarted)
             {
                 buffer = AnotherWalkingObject;
             }
@@ -246,31 +244,49 @@ public class GameMaster : MonoBehaviour
     #endregion
     private void GotHitUpdate()
     {
-        while (IsNearestLeftObjectToNear())
+        List<GameObject> Buffer = new List<GameObject>();
+        bool shouldBePunished = false;
+        for(int i = 0; i < _WalkingObjectsLeft.Count;i++)
         {
-            if (_IsThrowing)
+            if ((_WalkingObjectsLeft[i].transform.position - _SageObject.transform.position).sqrMagnitude < _TranquilDistance * _TranquilDistance)
             {
-                ObjectThrowStop(_BusyHand);
+                if (_IsThrowing)
+                {
+                    ObjectThrowStop(_BusyHand);
+                }
+                if (_IsBarricateSlapping)
+                {
+                    SlapBarricateStop(_BusyHand);
+                }
+                shouldBePunished = true;
+                Buffer.Add(_WalkingObjectsLeft[i]);
             }
-            if (_IsBarricateSlapping)
-            {
-                SlapBarricateStop(_BusyHand);
-            }
-            Penalty();
-            RemoveNearestLeftNuisance();
         }
-        while (IsNearestRightObjectToNear())
+
+        for (int i = 0; i < _WalkingObjectsRight.Count; i++)
         {
-            if (_IsThrowing)
+            if ((_WalkingObjectsRight[i].transform.position - _SageObject.transform.position).sqrMagnitude < _TranquilDistance * _TranquilDistance)
             {
-                ObjectThrowStop(_BusyHand);
+                if (_IsThrowing)
+                {
+                    ObjectThrowStop(_BusyHand);
+                }
+                if (_IsBarricateSlapping)
+                {
+                    SlapBarricateStop(_BusyHand);
+                }
+                shouldBePunished = true;
+                Buffer.Add(_WalkingObjectsRight[i]);
             }
-            if (_IsBarricateSlapping)
-            {
-                SlapBarricateStop(_BusyHand);
-            }
+        }
+
+        for (int i = 0; i < Buffer.Count; i++)
+        {
+            RemoveWalkingObject(Buffer[i]);
+        }
+        if (shouldBePunished)
+        {
             Penalty();
-            RemoveNearestRightNuisance();
         }
     }
     private void RemoveNearestLeftNuisance()
@@ -310,39 +326,26 @@ public class GameMaster : MonoBehaviour
             _ObjectPool.Add(WalkingObject);
         }
     }
-    private bool IsNearestLeftObjectToNear()
-    {
-        if (_WalkingObjectsLeft.Count > 0)
-        {
-            if ((_SageObject.transform.position - _WalkingObjectsLeft[0].transform.position).sqrMagnitude < _TranquilDistance * _TranquilDistance)
-            {
-                return true;
-            }
-        }
-        return false;
-    }
-    private bool IsNearestRightObjectToNear()
-    {
-        if (_WalkingObjectsRight.Count > 0)
-        {
-            if ((_SageObject.transform.position - _WalkingObjectsRight[0].transform.position).sqrMagnitude < _TranquilDistance * _TranquilDistance)
-            {
-                return true;
-            }
-        }
-        return false;
-    }
     private void Penalty()
     {
-        //TODO: implement penalty here.
-        //use the stats of the closest Object.
-        _WisdomLevelBuffer = WisdomLevel;
-        Debug.Log("Let me read my magazins in peace!");
+        if(WisdomLevel - 1 != -1)
+        {
+        WisdomLevel = WisdomLevel -1;
         Coroutine Buffer = StartCoroutine(HitBlink());
         _GotHit.Add(Buffer);
+        }
+        else
+        {
+            StopGame();
+        }
     }
     private void PlayerInput()
     {
+        if(!_GameHasStarted && (Input.GetButtonDown("Left") || Input.GetButtonDown("Right")))
+        {
+            StartGame();
+        }
+
         if (!IsBusySlapping() && (Input.GetButtonDown("Left") || Input.GetButtonDown("Right")))
         {
             InitialSlaps();
@@ -493,7 +496,11 @@ public class GameMaster : MonoBehaviour
         _AmountOfSlapsNeeded = _AmountOfSlapsNeeded_AtStart * BufferDevelopment;
         _MaxTimeForBarricateSlapping = _MaxTimeForBarricateSlapping_AtStart / BufferDevelopment;
 
-        _WisdomDisplay._WisdomLevel = BufferLevel;
+        _WisdomDisplay.SetInteger("WisdomLevel", BufferLevel);
+        if(WisdomLevel == _TimeNeededForStage.GetLength(0) - 1)
+        {
+            StopGame();
+        }
     }
     private void LetHandAppear(Hand WhichHand)
     {
@@ -521,13 +528,38 @@ public class GameMaster : MonoBehaviour
     private void StartSlowmoZoom(Hand WhichHand)
     {
         Time.timeScale = _SlowmoTimePercentage;
+        /*
         _OriginalCamPosition = _CamObject.transform.position;
         _CamObject.transform.position = Vector3.Scale(WhichHand.gameObject.transform.position, new Vector3(1, 0, 0));
         _CamObject.transform.position += Vector3.Scale(_OriginalCamPosition, new Vector3(0, 1, 1));
+        */
     }
     private void StopSlowmoZoom()
     {
         Time.timeScale = 1;
-        _CamObject.transform.position = _OriginalCamPosition;
+        //_CamObject.transform.position = _OriginalCamPosition;
+    }
+    private void StartGame()
+    {
+        _Startscreen.SetActive(false);
+        _GameHasStarted = true;
+        WisdomLevel = 0;
+        _WisdomDisplay.SetInteger("WisdomLevel", WisdomLevel);
+    }
+    private void StopGame()
+    {
+        _Startscreen.SetActive(true);
+        _GameHasStarted = false;
+        int buffer = _WalkingObjectsLeft.Count;
+        for(int i = 0; i < buffer; i++)
+        {
+            RemoveNearestLeftNuisance();
+        }
+        buffer = _WalkingObjectsRight.Count;
+        for (int i = 0; i < buffer; i++)
+        {
+            RemoveNearestRightNuisance();
+        }
+        _WisdomDisplay.SetInteger("WisdomLevel", WisdomLevel);
     }
 }

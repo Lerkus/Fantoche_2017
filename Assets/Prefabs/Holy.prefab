@@ -22,6 +22,7 @@ GameObject:
   - component: {fileID: 212893780471650978}
   - component: {fileID: 114087261043116662}
   - component: {fileID: 61472423977785146}
+  - component: {fileID: 95824371269813298}
   m_Layer: 0
   m_Name: Holy
   m_TagString: Untagged
@@ -67,6 +68,23 @@ BoxCollider2D:
   serializedVersion: 2
   m_Size: {x: 0.2, y: 0.2}
   m_EdgeRadius: 0
+--- !u!95 &95824371269813298
+Animator:
+  serializedVersion: 3
+  m_ObjectHideFlags: 1
+  m_PrefabParentObject: {fileID: 0}
+  m_PrefabInternal: {fileID: 100100000}
+  m_GameObject: {fileID: 1156408565563332}
+  m_Enabled: 1
+  m_Avatar: {fileID: 0}
+  m_Controller: {fileID: 9100000, guid: 7fa25e1defda5be42bb9537e8eccba18, type: 2}
+  m_CullingMode: 0
+  m_UpdateMode: 0
+  m_ApplyRootMotion: 0
+  m_LinearVelocityBlending: 0
+  m_WarningMessage: 
+  m_HasTransformHierarchy: 1
+  m_AllowConstantClipSamplingOptimization: 1
 --- !u!114 &114087261043116662
 MonoBehaviour:
   m_ObjectHideFlags: 1
@@ -82,10 +100,6 @@ MonoBehaviour:
   _DistractionType: 2
   _WalkingVelocity: {x: 0, y: 0, z: 0}
   _Walkingmodifier: 0.75
-  _SpritesForAnimation:
-  - {fileID: 21300000, guid: 729799f6b3add544ea8c967d3a7be0e9, type: 3}
-  - {fileID: 21300000, guid: 4d5baa6b42fea194c9b007f6918516ff, type: 3}
-  _TimeUntilSpriteFlip: 0
 --- !u!212 &212893780471650978
 SpriteRenderer:
   m_ObjectHideFlags: 1
